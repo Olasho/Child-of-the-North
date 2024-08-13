@@ -1,0 +1,554 @@
+---
+title: "Child of the North"
+date: "`r Sys.Date()`"
+output: 
+  word_document: 
+    highlight: null
+    fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "->", warning = FALSE, message = FALSE, echo = FALSE)
+
+# install.packages("pacman")
+
+library(pacman)
+
+p_load(tidyverse,
+       skimr,
+       janitor,
+       gtsummary,
+       gt,
+       plotly,
+       rio,
+       here,
+       reactablefmtr,
+       gganimate,
+       plotly,
+       sf,
+       tmap,
+       paletteer,
+       mapview,
+       rgdal,
+       sp,
+       RColorBrewer,
+       webshot2
+       )
+
+# Taking a snapshot of the current project state
+
+renv::snapshot()
+
+# These packages are installed in "~/Desktop/R language2/My projects/Linear Regression Modeling and Visualisation/renv/library/R-4.3/aarch64-apple-darwin20".
+```
+
+```{css, echo=FALSE}
+/* styles.css */
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: white; /* Add background color */
+  font-size: 14px;
+  text-align: justify;
+}
+
+h1 {
+  color: blue;
+  font-size: 22px;
+}
+
+h2 {
+  color: blue;
+  font-size: 14px;
+}
+
+h3 {
+  color: blue;
+  font-size: 12px;
+}
+
+p {
+  font-size: 14px;
+}
+```
+
+# Introduction
+
+**Definition of key terms and understanding of key points**
+
+1.  A pupil enrolment is identified as a persistent absentee if they miss 10% or more of their possible sessions.
+
+2.  All maintained schools are required to provide 2 possible sessions per day, morning and afternoon, to all pupils.
+
+3.  Schools must meet for at least 380 sessions or 190 days during any school year to educate their pupils.
+
+4.  Aged 5 - 15 compulsory school age
+
+5.  Absence information is reported as totals or rates across a period, usually by school term or academic year.
+
+6.  Overall absence is the aggregated total of all authorized and unauthorized absences.
+
+7.  An enrolment’s overall absence rate is the total number of overall absence sessions as a percentage of the total number of possible sessions available to that enrolment, where overall absence is the sum of authorised and unauthorised absence and one session is equal to half a day.
+
+8.  Overall absence rate = (Total overall absence sessions) / Total sessions possible) X 100
+
+9.  the total sessions possible is the sum of possible sessions as recorded on the school census and sessions recorded as not attending in circumstances related to coronavirus (COVID-19).
+
+10. A pupil is classified as a persistent absentee if they miss 10% or more of their own possible sessions. Therefore if an enrolment’s overall absence rate is 10% or higher they will be classified as persistently absent.
+
+11. To calculate school, local authority and national level persistent absence rates, all persistently absent enrolments within the relevant areas are included.
+
+    Persistent absence rate = (Number of enrolments classed as persistent absentees / Number of enrolments) X 100
+
+12. From the 2020/21 academic year, the persistent absence rate for each pupil was calculated using total sessions possible as the sum of possible sessions as recorded on the school census and sessions recorded as not attending in circumstances related to coronavirus (COVID-19).
+
+13. A pupil is classified as a severely persistent absentee if they miss 50% or more of their own possible sessions.
+
+    Severe absence rate = (Number of enrolments classed as severely persistent absentees / Number of enrolments) X 100
+
+    The persistent absence measure was introduced in 2005/06.
+
+14. The absence rate is the total number of sessions missed due to absence for all pupils as a percentage of the total number of possible sessions for all pupils. One session is equal to half a day. 
+
+15. Authorised absence is absence with permission from a teacher or other authorized school representative - including absences where a satisfactory explanation has been provided. For example, through illness.
+
+16. Unauthorised absence is absence without permission from the school. This includes all unexplained or unjustified absences and arrivals after registration has closed.
+
+17. Absence information is collected and disseminated at enrrolment level rather than pupil level.
+
+18. The definition of low income used includes both those people that are out-of-work and those that are in work but who have low earnings (and who satisfy the respective means tests).
+
+19. 
+
+    | **Description of persistent absence measure**                            | **Academic years** |
+    |:-------------------------------------------------------------------------|:-------------------|
+    | 10% or more of sessions missed (based on each pupil’s possible sessions) | 2015/16 onwards    |
+    | Around 15% or more of sessions missed (based on a standard threshold)    | 2010/11 to 2014/15 |
+    | Around 20% or more of sessions missed (based on a standard threshold)    | 2005/06 to 2009/10 |
+    |                                                                          |                    |
+
+20. From the 2020/21 academic year, the persistent absence rate for each pupil was calculated using total sessions possible as the sum of possible sessions as recorded on the school census and sessions recorded as not attending in circumstances related to coronavirus (COVID-19).
+
+    *From April 2022 schools were advised to stop recording pupils who did not attend for reasons related to COVID-19 using a separate code (Code X).*
+
+21. The Income Deprivation Affecting Children Index (IDACI) measures the proportion of all children aged 0 to 15 living in income deprived families. It is a subset of the Income Deprivation Domain which measures the proportion of the population in an area experiencing deprivation relating to low income. The definition of low income used includes both those people that are out-of-work, and those that are in work but who have low earnings (and who satisfy the respective means tests).
+
+22. The IDACI score ranges from 0 to 1, with 0 indicating no children in the area are income-deprived, and 1 indicating all children in the area are income-deprived. When expressed as a percentage, it ranges from 0% to 100%.
+
+**Resources for more information**
+
+1.  **Pupil absence statistics: methodology** <https://explore-education-statistics.service.gov.uk/methodology/pupil-absence-statistics-methodology>
+
+# Absence rate by region
+
+## Method
+
+1.  Trends in attendance data for the 9 regions of England from beginning of period to end
+
+2.  Use rates/proportion rather than raw numbers, due to unequal school sizes and regional population differences.
+
+3.  Changes over time, pre-pandimic, during the pandemic, post pandemic (by region)
+
+4.  Interactions of regions and SES/deprivation.
+
+5.  The data representing absence rates by geographic level - full academic years was used (Filename: 1_absence_3term_nat_reg_la.csv).
+
+## Analysis
+
+### loading and Cleaning the dataset
+
+```{r, include=FALSE}
+
+# loading the datasets
+
+north_absence_3term_nat_reg_la <- import(here("Data", "pupil-absence-in-schools-in-england_2023-24-autumn-term", "data", "1_absence_3term_nat_reg_la.csv"))
+
+north_LA_shapefile <- st_read("/Users/olasho/Desktop/R language2/My projects/Child of the North/Data/CMLAD_Dec_2011_GCB_GB_2022_7006135167027467778/CMLAD_Dec_2011_GCB_GB.shp")
+
+north_imd <- import(here("Data", "societal-wellbeing_imd2019_indicesbyla (1).csv"), skip = 7, header = TRUE)
+
+# An overview of the data
+
+### skim(north_absence_3term_nat_reg_la)
+
+# cleaning the dataset
+
+north_absence_3term_nat_reg_la <- north_absence_3term_nat_reg_la %>%
+  clean_names() %>%
+  distinct() %>%
+  mutate(Year = paste0(substr(as.character(time_period), 1, 4), "/", substr(as.character(time_period), 5, 6))) %>% 
+  select(Year, everything(), -c(time_period)) 
+```
+
+### Overall absence rate in the last calendar year (2022/23)
+
+Here we are going to look at the overall absence rate, persistent absence rate, and severe absence rate in the last calendar year (2022/23)
+
+```{r}
+
+# Streamlining the dataset
+
+north_absence_3term_nat_reg_la_region <- north_absence_3term_nat_reg_la %>%
+  filter(geographic_level == "Regional") %>%
+  mutate(Region = case_when(
+    region_name %in% c("North East", "North West", "Yorkshire and The Humber") ~ "North",
+    region_name %in% c("South East", "South West", "Outer London", "Inner London", "East of England") ~ "South",
+    region_name %in% c("West Midlands", "East Midlands") ~ "Midlands")) %>%
+  group_by(Year, Region, school_type) %>%
+  summarise(`Overall absence rate` = sum(sess_overall_percent * sess_possible)/sum(sess_possible),
+            `Authorised absence rate` = sum(sess_authorised_percent * sess_possible)/sum(sess_possible),
+            `Unauthorised absence rate` = sum(sess_unauthorised_percent * sess_possible)/sum(sess_possible),
+            `Overall persistent absence rate` = sum(sess_overall_percent_pa_10_exact * sess_possible_pa_10_exact)/sum(sess_possible_pa_10_exact),
+            `Authorised persistent absence rate` = sum(sess_authorised_percent_pa_10_exact * sess_possible_pa_10_exact)/sum(sess_possible_pa_10_exact),
+            `Unauthorised persistent absence rate` = sum(sess_unauthorised_percent_pa_10_exact * sess_possible_pa_10_exact)/sum(sess_possible_pa_10_exact)) %>%
+ mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
+  ungroup()
+
+
+###############################################################################################
+########################       OR second method more accurate
+north_absence_3term_nat_reg_la_region <- north_absence_3term_nat_reg_la %>%
+  filter(geographic_level == "Regional") %>%
+  mutate(Region = case_when(
+    region_name %in% c("North East", "North West", "Yorkshire and The Humber") ~ "North",
+    region_name %in% c("South East", "South West", "Outer London", "Inner London", "East of England") ~ "South",
+    region_name %in% c("West Midlands", "East Midlands") ~ "Midlands")) %>%
+  group_by(Year, Region, school_type) %>%
+  summarise(`Overall absence rate` = ((sum(sess_overall))/(sum(sess_possible))) * 100,
+            `Authorised absence rate` = ((sum(sess_authorised))/(sum(sess_possible))) * 100,
+            `Unauthorised absence rate` = ((sum(sess_unauthorised))/(sum(sess_possible))) * 100,
+            `Overall persistent absence rate` = ((sum(sess_overall_pa_10_exact))/(sum(sess_possible_pa_10_exact))) * 100,
+            `Authorised persistent absence rate` = ((sum(sess_authorised_pa_10_exact))/(sum(sess_possible_pa_10_exact))) * 100,
+            `Unauthorised persistent absence rate` = ((sum(sess_unauthorised_pa_10_exact))/(sum(sess_possible_pa_10_exact))) * 100) %>%
+ mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
+  ungroup()
+
+##############################################################################################
+
+# ploting the table for regions by ovearall absence rate and authorised/unauthorised absence rate
+
+north_absence_3term_nat_reg_la_region %>%
+  filter(Year == "2022/23", school_type == "Total") %>%
+  select(Region, `Authorised absence rate`, `Unauthorised absence rate`, `Overall absence rate`) %>%
+reactable(
+  pagination = FALSE,
+  columns = list(
+   `Authorised absence rate`  = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "right", 
+                       text_position = "inside-end")
+      ),
+    `Unauthorised absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "left",
+                       text_position = "inside-end")
+      ),
+   `Overall absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                     border_style = "solid",
+                     border_color = "gold", 
+                     border_width = "2px")
+      )
+  )
+)
+
+# ploting the table for regions by overall persistent absence rate and authorised/unauthorised persistent absence rate
+
+north_absence_3term_nat_reg_la_region %>%
+  filter(Year == "2022/23", school_type == "Total") %>%
+  select(Region, `Authorised persistent absence rate`, `Unauthorised persistent absence rate`, `Overall persistent absence rate`) %>%
+reactable(
+  pagination = FALSE,
+  columns = list(
+   `Authorised persistent absence rate`  = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "right", 
+                       text_position = "inside-end")
+      ),
+    `Unauthorised persistent absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "left",
+                       text_position = "inside-end")
+      ),
+   `Overall persistent absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                     border_style = "solid",
+                     border_color = "gold", 
+                     border_width = "2px")
+      )
+  )
+)
+```
+
+### Trends in absence rate (pre-pandimic, during the pandemic, post pandemic)
+
+```{r, fig.height=5, fig.width=12}
+
+# plotting the trend analysis
+
+graph_1 <- north_absence_3term_nat_reg_la_region %>%
+  filter(school_type == "Total") %>%
+  pivot_longer(cols = c(`Authorised absence rate`, `Unauthorised absence rate`, `Overall absence rate`), names_to = "Type of absence", values_to = "Absence rate", values_drop_na = TRUE) %>%
+ggplot(aes(x = Year, y = `Absence rate`, color = Region, group = Region)) +
+  geom_line(linewidth = 0.3) +
+  geom_point(size = 1) +
+  facet_wrap(~`Type of absence`, ncol = 3) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(vjust = 10, angle = 90),
+    plot.title = element_text(size = 10),
+    legend.key = element_rect(size = 10)
+  ) +
+  labs(
+    title = "Absence Rate",
+    x = NULL
+  )
+
+ggplotly(graph_1)
+
+```
+
+### Trends in persistent absence rate (pre-pandimic, during the pandemic, post pandemic)
+
+```{r, fig.height=5, fig.width=12}
+
+graph_2 <- north_absence_3term_nat_reg_la_region %>%
+  filter(school_type == "Total") %>%
+  pivot_longer(cols = c(`Authorised persistent absence rate`, `Unauthorised persistent absence rate`, `Overall persistent absence rate`), names_to = "Type of absence", values_to = "Persistent Absence Rate", values_drop_na = TRUE) %>%
+ggplot(aes(x = Year, y = `Persistent Absence Rate`, color = Region, group = Region)) +
+  geom_line(linewidth = 0.3) +
+  geom_point(size = 1) +
+  facet_wrap(~`Type of absence`, ncol = 3) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(vjust = 7, angle = 90),
+    plot.title = element_text(size = 10),
+    legend.key = element_rect(size = 10)
+  ) +
+  labs(
+    title = "Persistent Absence Rate",
+    x = NULL
+  )
+
+ggplotly(graph_2)
+```
+
+### Interactions of regions and SES/deprivation.
+
+```{r}
+
+# Extracting the variable needed from the IMD data
+
+north_imd <- north_imd %>%
+  mutate(`IDACI (percentage)` = `i. Income Deprivation Affecting Children Index (IDACI)` * 100) %>%
+  select(`Reference area`, `IDACI (percentage)`) 
+  
+# Joing the IMD and the shapefile
+
+north_LAIMD_map <- left_join(north_LA_shapefile, north_imd, by = c("cmlad11nm" = "Reference area")) 
+
+# Renaming the variables
+
+north_LAIMD_map <- north_LAIMD_map %>%
+  rename(`LA Code` = cmlad11cd,
+         `Local Authority` = cmlad11nm,
+         ) %>%
+  select(-c(cmlad11nmw))
+
+# Plotting the map
+
+mapview(north_LAIMD_map,
+        zcol = "IDACI (percentage)",
+        col.regions = brewer.pal(5,"PuRd"),
+        layer.name = "IMD by Local Authority",
+        native.crs = TRUE)
+```
+
+### Absence rate by Local Authority
+
+```         
+
+# Selecting the variable neededs
+
+north_absence_3term_nat_reg_la_2 <- north_absence_3term_nat_reg_la %>%
+  select(Year, geographic_level, new_la_code, la_name, sess_overall_percent, sess_overall_percent_pa_10_exact) %>%
+  filter(Year == 2022/23, geographic_level == "local Authority") %>%
+  rename(`Absence Rate` = sess_overall_percent, `Persistent Absence Rate` = sess_overall_percent_pa_10_exact)
+
+# Joining the data
+
+north_LAAbsence_map <- left_join(north_LA_shapefile, north_absence_3term_nat_reg_la_2, by = c("cmlad11nm" = "new_la_code")) 
+
+View(north_LAAbsence_map)
+```
+
+# Absence rate by school type
+
+## Method
+
+1.  Overall Absence rate by school
+
+2.  Trend over time
+
+3.  Multiple deprivation and /or free-school-meals
+
+4.  Compere top to bottom quintiles IMD based on school postcode, unless we have other data on school catchment area.
+
+5.  possible breaks due to covid
+
+6.  State funded versus private
+
+7.  The data representing absence rates by school level - full academic years was used (Filename: 1_absence_3term_school.csv).
+
+8.  The data representing absence rates by geographic level - full academic years was used (Filename: 1_absence_3term_nat_reg_la.csv) was also used.
+
+## Analysis
+
+### loading in the data
+
+```{r, include=FALSE}
+
+# loading the school data
+
+north_absence_3term_school <- import(here("Data", "pupil-absence-in-schools-in-england_2023-24-autumn-term", "data", "1_absence_3term_school.csv"))
+
+
+
+north_attainment <- import(here("Data", "youngpeoplesattainmentintownsreferencetable1.xlsx"), sheet = 2)
+
+```
+
+### Overall Absence and persistent absence rate by school type by region
+
+```{r}
+
+# Overall absence rate by school type  by region
+
+north_absence_3term_nat_reg_la_region %>%
+  filter(Year == "2022/23", school_type %in% c("Special", "State-funded secondary", "State-funded primary")) %>%
+  select(Region, school_type, `Authorised absence rate`, `Unauthorised absence rate`, `Overall absence rate`) %>%
+reactable(
+  pagination = FALSE,
+  columns = list(
+   `Authorised absence rate`  = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "right", 
+                       text_position = "inside-end")
+      ),
+    `Unauthorised absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "left",
+                       text_position = "inside-end")
+      ),
+   `Overall absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                     border_style = "solid",
+                     border_color = "gold", 
+                     border_width = "2px")
+      )
+  )
+)
+
+# Overall persistent absence rate by school type  by region
+
+north_absence_3term_nat_reg_la_region %>%
+  filter(Year == "2022/23", school_type %in% c("Special", "State-funded secondary", "State-funded primary")) %>%
+  select(Region, school_type, `Authorised persistent absence rate`, `Unauthorised persistent absence rate`, `Overall persistent absence rate`) %>%
+reactable(
+  pagination = FALSE,
+  columns = list(
+   `Authorised persistent absence rate`  = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "right", 
+                       text_position = "inside-end")
+      ),
+    `Unauthorised persistent absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                       align_bars = "left",
+                       text_position = "inside-end")
+      ),
+   `Overall persistent absence rate` = colDef(
+      cell = data_bars(north_absence_3term_nat_reg_la_region, 
+                     border_style = "solid",
+                     border_color = "gold", 
+                     border_width = "2px")
+      )
+  )
+)
+```
+
+### Trend over time by school type (absence rate)
+
+```{r, fig.height=5, fig.width=12}
+
+# plotting the trend analysis (absence rate)
+
+graph_3 <- north_absence_3term_nat_reg_la_region %>%
+ggplot(aes(x = Year, y = `Overall absence rate`, color = Region, group = Region)) +
+  geom_line(linewidth = 0.3) +
+  geom_point(size = 1) +
+  facet_wrap(~school_type, ncol = 2) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(vjust = 10, angle = 90),
+    plot.title = element_text(size = 10),
+    legend.key = element_rect(size = 10)
+  ) +
+  labs(
+    title = "Absence Rate",
+    x = NULL
+  )
+
+ggplotly(graph_3)
+
+# plotting the trend analysis (persistent absence rate)
+
+graph_4 <- north_absence_3term_nat_reg_la_region %>%
+ggplot(aes(x = Year, y = `Overall persistent absence rate`, color = Region, group = Region)) +
+  geom_line(linewidth = 0.3) +
+  geom_point(size = 1) +
+  facet_wrap(~school_type, ncol = 2) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(vjust = 10, angle = 90),
+    plot.title = element_text(size = 10),
+    legend.key = element_rect(size = 10)
+  ) +
+  labs(
+    title = "Persistent Absence Rate",
+    x = NULL
+  )
+
+ggplotly(graph_4)
+```
+
+### Compare top to bottom quintiles IMD based on school postcode, unless we have other data on school catchment area
+
+```{r}
+
+
+```
+
+# General rate of non-attendance over time (trend)
+
+# Absence rate by low high Socio-economic status (SES)
+
+# Absence rate and attainment
+
+# Factors and school absenteeism
+
+1.  Ethnic
+
+2.  Pupil characteristics
+
+# Other things to consider
+
+1.  distinction between authorised and unauthorised absence has become less clear, particularly since the pandemic ( need to b
